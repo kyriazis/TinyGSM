@@ -569,11 +569,15 @@ class TinyGsmSim7000 : public TinyGsmModem<TinyGsmSim7000>,
   bool modemConnect(const char* host, uint16_t port, uint8_t mux,
                     bool ssl = false, int timeout_s = 75) {
     uint32_t timeout_ms = ((uint32_t)timeout_s) * 1000;
+    bool localSsl = ssl;
 
     sendAT(GF("+CACID="), mux);
     if (waitResponse(timeout_ms) != 1) return false;
 
-    if (ssl) {
+    Serial.println("modemConnect here");
+    if (ssl || (strlen(certificates[mux].c_str()) > 0)) {
+      localSsl = true;
+      Serial.println("modemConnect SSL here");
       sendAT(GF("+CSSLCFG=\"sslversion\",0,3"));  // TLS 1.2
       if (waitResponse() != 1) return false;
 
@@ -587,10 +591,13 @@ class TinyGsmSim7000 : public TinyGsmModem<TinyGsmSim7000>,
       }
     }
 
-    sendAT(GF("+CASSLCFG="), mux, ',', GF("ssl,"), ssl);
+    sendAT(GF("+CASSLCFG="), mux, ',', GF("ssl,"), localSsl);
     waitResponse();
 
     sendAT(GF("+CASSLCFG="), mux, ',', GF("protocol,0"));
+    waitResponse();
+
+    sendAT(GF("+CSSLCFG=\"sni\","), mux, ',', GF("\""), host, GF("\""));
     waitResponse();
 
     sendAT(GF("+CAOPEN="), mux, ',', GF("\""), host, GF("\","), port);
@@ -601,6 +608,7 @@ class TinyGsmSim7000 : public TinyGsmModem<TinyGsmSim7000>,
     int8_t res = streamGetIntBefore('\n');
     waitResponse();
 
+    Serial.print("CAOpen res: "); Serial.println(res);
     return 0 == res;
   }
 
@@ -759,8 +767,10 @@ class TinyGsmSim7000 : public TinyGsmModem<TinyGsmSim7000>,
         int8_t a = stream.read();
         if (a <= 0) continue;  // Skip 0x00 bytes, just in case
         data += static_cast<char>(a);
+	//Serial.print("###: "); Serial.println(data);
         if (r1 && data.endsWith(r1)) {
           index = 1;
+	  //Serial.print("###: "); Serial.println(data);
           goto finish;
         } else if (r2 && data.endsWith(r2)) {
           index = 2;
@@ -855,6 +865,7 @@ class TinyGsmSim7000 : public TinyGsmModem<TinyGsmSim7000>,
       }
     } while (millis() - startMillis < timeout_ms);
   finish:
+    Serial.print("<<<: "); Serial.println(data);
     if (!index) {
       data.trim();
       if (data.length()) { DBG("### Unhandled:", data); }

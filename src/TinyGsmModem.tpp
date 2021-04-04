@@ -28,6 +28,12 @@ class TinyGsmModem {
     thisModem().streamWrite("AT", cmd..., thisModem().gsmNL);
     thisModem().stream.flush();
     TINY_GSM_YIELD(); /* DBG("### AT:", cmd...); */
+    Serial.print("###: AT");
+    String myString;
+    using unused = int[];
+    (void) unused { 0, (myString += String(cmd), 0)... };
+    Serial.print(myString);
+    Serial.println("");
   }
   void setBaud(uint32_t baud) {
     thisModem().setBaudImpl(baud);
