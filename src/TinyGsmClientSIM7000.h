@@ -569,13 +569,11 @@ class TinyGsmSim7000 : public TinyGsmModem<TinyGsmSim7000>,
   bool modemConnect(const char* host, uint16_t port, uint8_t mux,
                     bool ssl = false, int timeout_s = 75) {
     uint32_t timeout_ms = ((uint32_t)timeout_s) * 1000;
-    bool localSsl = ssl;
 
     sendAT(GF("+CACID="), mux);
     if (waitResponse(timeout_ms) != 1) return false;
 
-    if (ssl || (strlen(certificates[mux].c_str()) > 0)) {
-      localSsl = true;
+    if (ssl) {
       sendAT(GF("+CSSLCFG=\"sslversion\",0,3"));  // TLS 1.2
       if (waitResponse() != 1) return false;
 
@@ -589,7 +587,7 @@ class TinyGsmSim7000 : public TinyGsmModem<TinyGsmSim7000>,
       }
     }
 
-    sendAT(GF("+CASSLCFG="), mux, ',', GF("ssl,"), localSsl);
+    sendAT(GF("+CASSLCFG="), mux, ',', GF("ssl,"), ssl);
     waitResponse();
 
     sendAT(GF("+CASSLCFG="), mux, ',', GF("protocol,0"));
